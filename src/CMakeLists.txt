@@ -22,6 +22,7 @@ add_definitions(${PCL_DEFINITIONS})
 DISCODE_FIND_DCL(PCLCoreTypes)
 DISCODE_FIND_DCL(CvCoreTypes)
 DISCODE_FIND_DCL(CvBasic) # Required for Types/Features.hpp -> TODO!
+DISCODE_FIND_DCL(Registration)
 
 # Add standard libraries for this DCL: Boost & PCL
 MESSAGE(STATUS "${PCL_LIBRARIES}")

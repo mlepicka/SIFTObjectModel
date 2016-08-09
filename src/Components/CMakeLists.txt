@@ -1,6 +1,6 @@
 # Add all components here using ADD_COMPONENT(<COMPONENT_DIRECTORY>)
 
-ADD_COMPONENT(ComputeDistance)
+#ADD_COMPONENT(ComputeDistance)
 
 ADD_COMPONENT(SOMJSONReader)
 
@@ -16,7 +16,7 @@ ADD_COMPONENT(CloudCutter)
 
 ADD_COMPONENT(PC2Octree)
 
-ADD_COMPONENT(ELECHGenerator)
+#ADD_COMPONENT(ELECHGenerator)
 
 ADD_COMPONENT(Visualization)
 
@@ -24,9 +24,9 @@ ADD_COMPONENT(NormalEstimation)
 
 ADD_COMPONENT(SIFTClusterExtraction)
 
-ADD_COMPONENT(ClosedCloudMerge)
+#ADD_COMPONENT(ClosedCloudMerge)
 
-ADD_COMPONENT(OpenCloudMerge)
+#ADD_COMPONENT(OpenCloudMerge)
 
 ADD_COMPONENT(SIFTNOMWriter)
 

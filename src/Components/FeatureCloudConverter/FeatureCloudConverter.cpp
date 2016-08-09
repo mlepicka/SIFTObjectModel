@@ -11,7 +11,9 @@
 #include "Common/Logger.hpp"
 
 #include <boost/bind.hpp>
-
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <iostream>
 namespace Processors {
 namespace FeatureCloudConverter {
 
@@ -212,16 +214,29 @@ void FeatureCloudConverter::process_depth_xyz_mask() {
     CLOG(LTRACE) << "FeatureCloudConverter::process_depth_xyz_mask";
     cv::Mat depth_xyz = in_depth_xyz.read();
     cv::Mat descriptors = in_descriptors.read();
-    Types::Features features = in_features.read();
+    Types::Features features = Types::Features(in_features.read());
+    
+    CLOG(LTRACE) << "Descriptors: "<<descriptors.total();
+    CLOG(LTRACE) <<"Features: "<<features.features.size();
+    
     cv::Mat mask = in_mask.read();
-    mask.convertTo(mask, CV_32F);
+    cv::Mat tmp = cv::Mat();
+    mask.convertTo(tmp, CV_32F);
+    mask=tmp;
+
+	CLOG(LTRACE) <<"Mask: "<<mask.total();
+
     pcl::PointCloud<PointXYZSIFT>::Ptr cloud (new pcl::PointCloud<PointXYZSIFT>());
     const double max_z = 1.0e4;
-
+	//cv::namedWindow( "Display window");// Create a window for display.
+   // cv::imshow( "Display window", mask );                   // Show our image inside it.
+   // cv::waitKey(0);                                          // Wait for a keystroke in the window
+   
     for(int i=0; i < features.features.size(); i++){
         PointXYZSIFT point;
-        int u = round(features.features[i].pt.x);
-        int v = round(features.features[i].pt.y);
+
+        float u = features.features[i].pt.x;
+        float v = features.features[i].pt.y;
         if (mask.at<float>(v, u)==0) {
                 continue;
         }

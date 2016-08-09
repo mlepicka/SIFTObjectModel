@@ -12,13 +12,8 @@
 
 #include <boost/bind.hpp>
 
-#if CV_MAJOR_VERSION == 2
-#if CV_MINOR_VERSION > 3
-#include <opencv2/nonfree/features2d.hpp>
-#endif
-#elif CV_MAJOR_VERSION == 3
-#include <opencv2/nonfree/features2d.hpp>
-#endif
+# include "opencv2/xfeatures2d/nonfree.hpp"
+#include "opencv2/xfeatures2d.hpp"
 
 namespace Processors {
 namespace xyzrgb2xyzsift {
@@ -80,14 +75,14 @@ void xyzrgb2xyzsift::compute() {
     cv::Mat descriptors;
     try {
         //-- Step 1: Detect the keypoints.
-        cv::SiftFeatureDetector detector;
+        cv::Ptr<cv::xfeatures2d::SiftFeatureDetector> detector = cv::xfeatures2d::SiftFeatureDetector::create();
 
-        detector.detect(rgbimg, keypoints);
+        detector->detect(rgbimg, keypoints);
 
         //-- Step 2: Calculate descriptors (feature vectors).
-        cv::SiftDescriptorExtractor extractor;
+        cv::Ptr<cv::xfeatures2d::SiftDescriptorExtractor> extractor = cv::xfeatures2d::SiftDescriptorExtractor::create();
 
-        extractor.compute( rgbimg, keypoints, descriptors);
+        extractor->compute( rgbimg, keypoints, descriptors);
     } catch (...) {
         LOG(LERROR) << "sdasdas\n";
     }

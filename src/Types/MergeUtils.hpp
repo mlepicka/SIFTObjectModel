@@ -26,7 +26,8 @@
 #include "pcl/registration/correspondence_rejection_sample_consensus.h"
 
 #include <opencv2/core/core.hpp>
-#include "CorrespondenceEstimationColor.hpp"
+
+#include <Types/CorrespondanceEstimationColor.hpp>
 
 class MergeUtils {
 public:
