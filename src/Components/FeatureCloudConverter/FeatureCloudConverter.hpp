@@ -16,6 +16,7 @@
 #include <Types/CameraInfo.hpp>
 #include <Types/Features.hpp> 
 #include <Types/PointXYZSIFT.hpp> 
+#include <Types/PointXYZKAZE.hpp>
 
 #include <opencv2/core/core.hpp>
 
@@ -83,6 +84,7 @@ protected:
 
 	/// Output data stream containing resulting feature cloud.
 	Base::DataStreamOut<pcl::PointCloud<PointXYZSIFT>::Ptr> out_cloud_xyzsift;
+	Base::DataStreamOut<pcl::PointCloud<PointXYZKAZE>::Ptr> out_cloud_xyzkaze;
 
 	// Handlers
 	Base::EventHandler2 h_process;
@@ -95,7 +97,21 @@ protected:
     void process_depth_xyz();
     void process_depth_xyz_mask();
 
-
+private:
+	template<typename T> void create_cloud(const Types::Features& features, cv::Mat depth,
+			double cx_d, double fx_d, double cy_d, double fy_d,
+			const cv::Mat& descriptors,
+			const typename pcl::PointCloud<T>::Ptr& cloud);
+	template<typename T> void create_cloud_mask(const Types::Features& features, cv::Mat depth,
+			double cx_d, double fx_d, double cy_d, double fy_d,
+			const cv::Mat& descriptors,
+			const typename pcl::PointCloud<T>::Ptr& cloud, cv::Mat mask);
+	template<typename T> void create_cloud_depth_xyz(const Types::Features& features, cv::Mat depth,
+			const cv::Mat& descriptors,
+			const typename pcl::PointCloud<T>::Ptr& cloud);
+	template<typename T> void create_cloud_depth_xyz_mask(const Types::Features& features, cv::Mat depth,
+			const cv::Mat& descriptors,
+			const typename pcl::PointCloud<T>::Ptr& cloud, cv::Mat mask);
 };
 
 } //: namespace FeatureCloudConverter

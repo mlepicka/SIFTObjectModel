@@ -32,6 +32,7 @@ void FeatureCloudConverter::prepareInterface() {
 	registerStream("in_camera_info", &in_camera_info);
     registerStream("in_depth_xyz", &in_depth_xyz);
 	registerStream("out_cloud_xyzsift", &out_cloud_xyzsift);
+	registerStream("out_cloud_xyzkaze", &out_cloud_xyzkaze);
 
 	// Register handlers
 	registerHandler("process", boost::bind(&FeatureCloudConverter::process, this));
@@ -77,149 +78,65 @@ bool FeatureCloudConverter::onStart() {
 	return true;
 }
 
-void FeatureCloudConverter::process() {
-	CLOG(LTRACE) << "FeatureCloudConverter::process";
-	cv::Mat depth = in_depth.read();
-	depth.convertTo(depth, CV_32F);
-	cv::Mat descriptors = in_descriptors.read();
-	Types::Features features = in_features.read();
-	Types::CameraInfo camera_info = in_camera_info.read();
-
-	pcl::PointCloud<PointXYZSIFT>::Ptr cloud (new pcl::PointCloud<PointXYZSIFT>());
-	
-	double fx_d = 0.001 / camera_info.fx();
-	double fy_d = 0.001 / camera_info.fy();
-	double cx_d = camera_info.cx();
-	double cy_d = camera_info.cy();
-	
-	for(int i=0; i < features.features.size(); i++){
-		
-		PointXYZSIFT point;
+template<typename T> void FeatureCloudConverter::create_cloud(const Types::Features& features,
+		cv::Mat depth, double cx_d, double fx_d, double cy_d, double fy_d,
+		const cv::Mat& descriptors,
+		const typename  pcl::PointCloud<T>::Ptr& cloud) {
+	for (int i = 0; i < features.features.size(); i++) {
+		T point;
 		int u = round(features.features[i].pt.x);
 		int v = round(features.features[i].pt.y);
-		//cout<<features.features[i].pt.x<<" -> "<<u<<endl;
-		//cout<<features.features[i].pt.y<<" -> "<<v<<endl;
-	
-		//const uint16_t* depth_row = reinterpret_cast<const uint16_t*>(&depth.data[v]);
-		//uint16_t d = depth_row[u];
 		float d = depth.at<float>(v, u);
 		if (d == 0) {
-				continue;
+			continue;
 		}
-		
 		point.x = (u - cx_d) * d * fx_d;
 		point.y = (v - cy_d) * d * fy_d;
 		point.z = d * 0.001;
-
-		
-		for(int j=0; j<descriptors.cols;j++){
-			point.descriptor[j] = descriptors.row(i).at<float>(j);	
+		for (int j = 0; j < descriptors.cols; j++) {
+			point.descriptor[j] = descriptors.row(i).at<float>(j);
 		}
-		
 		point.multiplicity = 1;
-		
 		cloud->push_back(point);
 	}
-	
-	out_cloud_xyzsift.write(cloud);
 }
 
+template<typename T> void FeatureCloudConverter::create_cloud_mask(const Types::Features& features,
+		cv::Mat depth, double cx_d, double fx_d, double cy_d, double fy_d,
+		const cv::Mat& descriptors,
+		const typename  pcl::PointCloud<T>::Ptr& cloud, cv::Mat mask) {
+		for(int i=0; i < features.features.size(); i++){
+			
+			T point;
+			int u = round(features.features[i].pt.x);
+			int v = round(features.features[i].pt.y);
 
-void FeatureCloudConverter::process_mask() {
-	CLOG(LTRACE) << "FeatureCloudConverter::process_mask";
-	cv::Mat depth = in_depth.read();
-	depth.convertTo(depth, CV_32F);
-	cv::Mat mask = in_mask.read();
-	mask.convertTo(mask, CV_32F);
-	cv::Mat descriptors = in_descriptors.read();
-	Types::Features features = in_features.read();
-	Types::CameraInfo camera_info = in_camera_info.read();
+			float d = depth.at<float>(v, u);
+			if (d == 0 || mask.at<float>(v, u)==0) {
+					continue;
+			}
+			
+			point.x = (u - cx_d) * d * fx_d;
+			point.y = (v - cy_d) * d * fy_d;
+			point.z = d * 0.001;
 
-	pcl::PointCloud<PointXYZSIFT>::Ptr cloud (new pcl::PointCloud<PointXYZSIFT>());
-	
-	double fx_d = 0.001 / camera_info.fx();
-	double fy_d = 0.001 / camera_info.fy();
-	double cx_d = camera_info.cx();
-	double cy_d = camera_info.cy();
-	
-	for(int i=0; i < features.features.size(); i++){
-		
-		PointXYZSIFT point;
-		int u = round(features.features[i].pt.x);
-		int v = round(features.features[i].pt.y);
-		//cout<<features.features[i].pt.x<<" -> "<<u<<endl;
-		//cout<<features.features[i].pt.y<<" -> "<<v<<endl;
-	
-		//const uint16_t* depth_row = reinterpret_cast<const uint16_t*>(&depth.data[v]);
-		//uint16_t d = depth_row[u];
-		float d = depth.at<float>(v, u);
-		if (d == 0 || mask.at<float>(v, u)==0) {
-				continue;
-		}
-		
-		point.x = (u - cx_d) * d * fx_d;
-		point.y = (v - cy_d) * d * fy_d;
-		point.z = d * 0.001;
-
-		for(int j=0; j<descriptors.cols;j++){
-			point.descriptor[j] = descriptors.row(i).at<float>(j);	
-		}
-		
-		point.multiplicity = 1;
-		
-		cloud->push_back(point);
+			for(int j=0; j<descriptors.cols;j++){
+				point.descriptor[j] = descriptors.row(i).at<float>(j);	
+			}
+			
+			point.multiplicity = 1;
+			
+			cloud->push_back(point);
 	}
-	
-	out_cloud_xyzsift.write(cloud);
 }
 
-void FeatureCloudConverter::process_depth_xyz() {
-    CLOG(LTRACE) << "FeatureCloudConverter::process_depth_xyz";
-    cv::Mat depth_xyz = in_depth_xyz.read();
-    cv::Mat descriptors = in_descriptors.read();
-    Types::Features features = in_features.read();
-
-    pcl::PointCloud<PointXYZSIFT>::Ptr cloud (new pcl::PointCloud<PointXYZSIFT>());
-    const double max_z = 1.0e4;
+template<typename T> void FeatureCloudConverter::create_cloud_depth_xyz_mask(const Types::Features& features, cv::Mat depth_xyz,
+			const cv::Mat& descriptors,
+			const typename pcl::PointCloud<T>::Ptr& cloud, cv::Mat mask){
+				    const double max_z = 1.0e4;
 
     for(int i=0; i < features.features.size(); i++){
-
-        PointXYZSIFT point;
-        int u = round(features.features[i].pt.x);
-        int v = round(features.features[i].pt.y);
-
-        cv::Vec3f p = depth_xyz.at<cv::Vec3f>(v, u);
-        if(fabs(p[2] - max_z) < FLT_EPSILON || fabs(p[2]) > max_z) continue;
-
-        point.x = p[0];
-        point.y = p[1];
-        point.z = p[2];
-
-
-        for(int j=0; j<descriptors.cols;j++){
-            point.descriptor[j] = descriptors.row(i).at<float>(j);
-        }
-
-        point.multiplicity = 1;
-
-        cloud->push_back(point);
-    }
-
-    out_cloud_xyzsift.write(cloud);
-}
-
-void FeatureCloudConverter::process_depth_xyz_mask() {
-    CLOG(LTRACE) << "FeatureCloudConverter::process_depth_xyz_mask";
-    cv::Mat depth_xyz = in_depth_xyz.read();
-    cv::Mat descriptors = in_descriptors.read();
-    Types::Features features = in_features.read();
-    cv::Mat mask = in_mask.read();
-    mask.convertTo(mask, CV_32F);
-    pcl::PointCloud<PointXYZSIFT>::Ptr cloud (new pcl::PointCloud<PointXYZSIFT>());
-    const double max_z = 1.0e4;
-
-    for(int i=0; i < features.features.size(); i++){
-        PointXYZSIFT point;
+        T point;
         int u = round(features.features[i].pt.x);
         int v = round(features.features[i].pt.y);
         if (mask.at<float>(v, u)==0) {
@@ -241,8 +158,140 @@ void FeatureCloudConverter::process_depth_xyz_mask() {
         point.multiplicity = 1;
         cloud->push_back(point);
     }
+}
 
-    out_cloud_xyzsift.write(cloud);
+
+template<typename T> void FeatureCloudConverter::create_cloud_depth_xyz(const Types::Features& features, cv::Mat depth_xyz,
+			const cv::Mat& descriptors,
+			const typename pcl::PointCloud<T>::Ptr& cloud){
+				const double max_z = 1.0e4;
+
+    for(int i=0; i < features.features.size(); i++){
+
+        T point;
+        int u = round(features.features[i].pt.x);
+        int v = round(features.features[i].pt.y);
+
+        cv::Vec3f p = depth_xyz.at<cv::Vec3f>(v, u);
+        if(fabs(p[2] - max_z) < FLT_EPSILON || fabs(p[2]) > max_z) continue;
+
+        point.x = p[0];
+        point.y = p[1];
+        point.z = p[2];
+
+
+        for(int j=0; j<descriptors.cols;j++){
+            point.descriptor[j] = descriptors.row(i).at<float>(j);
+        }
+
+        point.multiplicity = 1;
+
+        cloud->push_back(point);
+    }
+		
+}
+
+void FeatureCloudConverter::process() {
+	CLOG(LTRACE) << "FeatureCloudConverter::process";
+	cv::Mat depth = in_depth.read();
+	depth.convertTo(depth, CV_32F);
+	cv::Mat descriptors = in_descriptors.read();
+	Types::Features features = in_features.read();
+	Types::CameraInfo camera_info = in_camera_info.read();
+			
+	double fx_d = 0.001 / camera_info.fx();
+	double fy_d = 0.001 / camera_info.fy();
+	double cx_d = camera_info.cx();
+	double cy_d = camera_info.cy();
+	
+	CLOG(LTRACE) << "Feature type: "<< features.type;
+	if(features.type=="SIFT"){
+		CLOG(LTRACE) << "Create SIFT cloud!";
+		pcl::PointCloud<PointXYZSIFT>::Ptr cloud (new pcl::PointCloud<PointXYZSIFT>());
+		create_cloud<PointXYZSIFT>(features, depth, cx_d, fx_d, cy_d, fy_d, descriptors, cloud);
+		out_cloud_xyzsift.write(cloud);
+	}
+	else if(features.type=="KAZE"){
+		CLOG(LTRACE) << "Create KAZE cloud!";
+		pcl::PointCloud<PointXYZKAZE>::Ptr cloud (new pcl::PointCloud<PointXYZKAZE>());
+		create_cloud<PointXYZKAZE>(features, depth, cx_d, fx_d, cy_d, fy_d, descriptors, cloud);
+		out_cloud_xyzkaze.write(cloud);
+	}
+}
+
+
+void FeatureCloudConverter::process_mask() {
+	CLOG(LTRACE) << "FeatureCloudConverter::process_mask";
+	cv::Mat depth = in_depth.read();
+	depth.convertTo(depth, CV_32F);
+	cv::Mat mask = in_mask.read();
+	mask.convertTo(mask, CV_32F);
+	cv::Mat descriptors = in_descriptors.read();
+	Types::Features features = in_features.read();
+	Types::CameraInfo camera_info = in_camera_info.read();
+
+	double fx_d = 0.001 / camera_info.fx();
+	double fy_d = 0.001 / camera_info.fy();
+	double cx_d = camera_info.cx();
+	double cy_d = camera_info.cy();
+
+	CLOG(LTRACE) << "Feature type: "<< features.type;
+	if(features.type=="SIFT"){
+		CLOG(LTRACE) << "Create SIFT cloud!";
+		pcl::PointCloud<PointXYZSIFT>::Ptr cloud (new pcl::PointCloud<PointXYZSIFT>());
+		create_cloud_mask<PointXYZSIFT>(features, depth, cx_d, fx_d, cy_d, fy_d, descriptors, cloud, mask);
+		out_cloud_xyzsift.write(cloud);
+	}
+	else if(features.type=="KAZE"){
+		CLOG(LTRACE) << "Create KAZE cloud!";
+		pcl::PointCloud<PointXYZKAZE>::Ptr cloud (new pcl::PointCloud<PointXYZKAZE>());
+		create_cloud_mask<PointXYZKAZE>(features, depth, cx_d, fx_d, cy_d, fy_d, descriptors, cloud, mask);
+		out_cloud_xyzkaze.write(cloud);
+	}
+}
+
+void FeatureCloudConverter::process_depth_xyz() {
+    CLOG(LTRACE) << "FeatureCloudConverter::process_depth_xyz";
+    cv::Mat depth_xyz = in_depth_xyz.read();
+    cv::Mat descriptors = in_descriptors.read();
+    Types::Features features = in_features.read();
+
+	CLOG(LTRACE) << "Feature type: "<< features.type;
+    if(features.type=="SIFT"){
+		CLOG(LTRACE) << "Create SIFT cloud!";
+		pcl::PointCloud<PointXYZSIFT>::Ptr cloud (new pcl::PointCloud<PointXYZSIFT>());
+		create_cloud_depth_xyz<PointXYZSIFT>(features, depth_xyz, descriptors, cloud);
+		out_cloud_xyzsift.write(cloud);
+	}
+	else if(features.type=="KAZE"){
+		CLOG(LTRACE) << "Create KAZE cloud!";
+		pcl::PointCloud<PointXYZKAZE>::Ptr cloud (new pcl::PointCloud<PointXYZKAZE>());
+		create_cloud_depth_xyz<PointXYZKAZE>(features, depth_xyz, descriptors, cloud);
+		out_cloud_xyzkaze.write(cloud);
+	}
+}
+
+void FeatureCloudConverter::process_depth_xyz_mask() {
+    CLOG(LTRACE) << "FeatureCloudConverter::process_depth_xyz_mask";
+    cv::Mat depth_xyz = in_depth_xyz.read();
+    cv::Mat descriptors = in_descriptors.read();
+    Types::Features features = in_features.read();
+    cv::Mat mask = in_mask.read();
+    mask.convertTo(mask, CV_32F);
+    
+    CLOG(LTRACE) << "Feature type: "<< features.type.c_str();
+  	if(features.type=="SIFT"){
+		CLOG(LTRACE) << "Create SIFT cloud!";
+		pcl::PointCloud<PointXYZSIFT>::Ptr cloud (new pcl::PointCloud<PointXYZSIFT>());
+		create_cloud_depth_xyz_mask<PointXYZSIFT>(features, depth_xyz, descriptors, cloud, mask);
+		out_cloud_xyzsift.write(cloud);
+	}
+	else if(features.type=="KAZE"){
+		CLOG(LTRACE) << "Create KAZE cloud!";
+		pcl::PointCloud<PointXYZKAZE>::Ptr cloud (new pcl::PointCloud<PointXYZKAZE>());
+		create_cloud_depth_xyz_mask<PointXYZKAZE>(features, depth_xyz, descriptors, cloud, mask);
+		out_cloud_xyzkaze.write(cloud);
+	}
 }
 
 } //: namespace FeatureCloudConverter
