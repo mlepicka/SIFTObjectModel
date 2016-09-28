@@ -10,8 +10,6 @@ ADD_COMPONENT(SIFTObjectMatcher)
 
 ADD_COMPONENT(SIFTAdder)
 
-ADD_COMPONENT(FeatureCloudConverter)
-
 ADD_COMPONENT(CloudCutter)
 
 ADD_COMPONENT(PC2Octree)
@@ -37,8 +35,6 @@ ADD_COMPONENT(PC2SOM)
 ADD_COMPONENT(SOMs2PC)
 
 ADD_COMPONENT(xyzrgb2xyzsift)
-
-ADD_COMPONENT(GaussCloud)
 
 ADD_COMPONENT(ProjectionGrouping)
 
